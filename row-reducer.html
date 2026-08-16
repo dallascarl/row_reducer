@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrix Row Reducer</title>
+<style>
+  :root {
+    --bg: #f7f7f9;
+    --panel: #ffffff;
+    --border: #d7d9e0;
+    --text: #22242a;
+    --muted: #6b7280;
+    --accent: #2f5fdb;
+    --accent-hover: #24479f;
+    --accent2: #444a5e;
+    --pivot: #e8f0ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 60px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    margin: 0 0 24px;
+    font-size: 0.95rem;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .panel h2 {
+    font-size: 1rem;
+    margin: 0 0 12px;
+    color: var(--accent2);
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  label {
+    font-size: 0.9rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  select, input[type=number] {
+    font-size: 0.9rem;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+  }
+  button {
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button:hover { background: var(--accent-hover); }
+  button.secondary {
+    background: #fff;
+    color: var(--accent2);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover { background: #f0f1f4; }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .matrix-scroll {
+    overflow-x: auto;
+    padding: 4px 0;
+  }
+  .matrix-grid {
+    display: inline-grid;
+    gap: 6px;
+  }
+  .matrix-grid input {
+    width: 62px;
+    height: 36px;
+    text-align: center;
+    font-size: 0.95rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+  }
+  .matrix-grid input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  table.out-matrix {
+    border-collapse: separate;
+    border-spacing: 6px;
+    margin: 0 auto;
+  }
+  table.out-matrix td {
+    width: 62px;
+    height: 36px;
+    text-align: center;
+    font-size: 0.95rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fbfbfd;
+  }
+  table.out-matrix td.pivot {
+    background: var(--pivot);
+    font-weight: 600;
+    border-color: var(--accent);
+  }
+  .out-label {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-top: 6px;
+  }
+  .error {
+    color: #b3261e;
+    font-size: 0.85rem;
+    margin-top: 8px;
+  }
+  .hidden { display: none; }
+  .radio-group {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Matrix Row Reducer</h1>
+  <p class="subtitle">Enter a matrix and reduce it to Row Echelon Form (REF) or Reduced Row Echelon Form (RREF).</p>
+
+  <div class="panel">
+    <h2>1. Matrix size</h2>
+    <div class="row">
+      <label>Rows
+        <select id="rowsSelect"></select>
+      </label>
+      <label>Columns
+        <select id="colsSelect"></select>
+      </label>
+      <button id="createBtn">Create Matrix</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="matrixPanel">
+    <h2>2. Enter values</h2>
+    <div class="matrix-scroll">
+      <div class="matrix-grid" id="matrixGrid"></div>
+    </div>
+    <p class="hint">Blank = 0. You can type whole numbers, decimals (1.5), negatives (-2), or fractions (3/4).</p>
+    <div class="error hidden" id="inputError"></div>
+
+    <h2 style="margin-top:18px;">3. Display format</h2>
+    <div class="row">
+      <div class="radio-group">
+        <label><input type="radio" name="displayMode" value="fraction" checked> Fractions</label>
+        <label><input type="radio" name="displayMode" value="decimal"> Decimals</label>
+      </div>
+      <label id="decimalPlacesLabel" class="hidden">Decimal places
+        <select id="decimalPlaces">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="6">6</option>
+        </select>
+      </label>
+    </div>
+
+    <h2 style="margin-top:18px;">4. Reduce</h2>
+    <div class="row">
+      <button id="refBtn">REF</button>
+      <button id="rrefBtn">RREF</button>
+      <button class="secondary" id="clearBtn">Clear values</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="outputPanel">
+    <h2 id="outputTitle">Result</h2>
+    <div class="out-label" id="outputSubtitle"></div>
+    <div class="matrix-scroll">
+      <table class="out-matrix" id="outputTable"></table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ---------------- Fraction class (exact arithmetic via BigInt) ----------------
+  function bgcd(a, b) {
+    a = a < 0n ? -a : a;
+    b = b < 0n ? -b : b;
+    while (b) { const t = a % b; a = b; b = t; }
+    return a === 0n ? 1n : a;
+  }
+
+  class Frac {
+    constructor(n, d = 1n) {
+      if (typeof n !== 'bigint') n = BigInt(n);
+      if (typeof d !== 'bigint') d = BigInt(d);
+      if (d === 0n) throw new Error('Division by zero');
+      if (d < 0n) { n = -n; d = -d; }
+      const g = bgcd(n, d);
+      this.n = n / g;
+      this.d = d / g;
+    }
+    static fromNumberString(str) {
+      str = (str || '').trim();
+      if (str === '') return new Frac(0n, 1n);
+      if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length !== 2) throw new Error('Invalid fraction "' + str + '"');
+        const num = Frac.fromDecimalString(parts[0]);
+        const den = Frac.fromDecimalString(parts[1]);
+        if (den.isZero()) throw new Error('Division by zero in "' + str + '"');
+        return num.div(den);
+      }
+      return Frac.fromDecimalString(str);
+    }
+    static fromDecimalString(str) {
+      str = (str || '').trim();
+      if (str === '') return new Frac(0n, 1n);
+      let neg = false;
+      if (str[0] === '-') { neg = true; str = str.slice(1); }
+      else if (str[0] === '+') { str = str.slice(1); }
+      if (!/^\d*\.?\d*$/.test(str) || str === '' || str === '.') {
+        throw new Error('"' + str + '" is not a valid number');
+      }
+      let [intPart, fracPart] = str.split('.');
+      intPart = intPart || '0';
+      fracPart = fracPart || '';
+      const denom = 10n ** BigInt(fracPart.length);
+      let numer = BigInt(intPart) * denom + (fracPart ? BigInt(fracPart) : 0n);
+      if (neg) numer = -numer;
+      return new Frac(numer, denom);
+    }
+    add(o) { return new Frac(this.n * o.d + o.n * this.d, this.d * o.d); }
+    sub(o) { return new Frac(this.n * o.d - o.n * this.d, this.d * o.d); }
+    mul(o) { return new Frac(this.n * o.n, this.d * o.d); }
+    div(o) {
+      if (o.n === 0n) throw new Error('Division by zero');
+      return new Frac(this.n * o.d, this.d * o.n);
+    }
+    neg() { return new Frac(-this.n, this.d); }
+    isZero() { return this.n === 0n; }
+    toFractionString() {
+      if (this.d === 1n) return this.n.toString();
+      return this.n.toString() + '/' + this.d.toString();
+    }
+    toDecimalString(places) {
+      const neg = this.n < 0n;
+      const n = neg ? -this.n : this.n;
+      const numerator = n * (10n ** BigInt(places));
+      let q = numerator / this.d;
+      const r = numerator % this.d;
+      if (r * 2n >= this.d) q += 1n;
+      let s = q.toString().padStart(places + 1, '0');
+      const intPart = s.slice(0, s.length - places) || '0';
+      const fracPart = places > 0 ? '.' + s.slice(s.length - places) : '';
+      const isZeroResult = (q === 0n);
+      return (neg && !isZeroResult ? '-' : '') + intPart + fracPart;
+    }
+  }
+
+  // ---------------- Gaussian / Gauss-Jordan elimination ----------------
+  // reduced=false -> REF (leading entries left as found, only zeros below pivots)
+  // reduced=true  -> RREF (leading entries normalized to 1, zeros above and below)
+  function eliminate(matrix, reduced) {
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+    const pivotCols = [];
+    let lead = 0;
+    for (let r = 0; r < rows; r++) {
+      if (lead >= cols) break;
+      let i = r;
+      while (matrix[i][lead].isZero()) {
+        i++;
+        if (i === rows) {
+          i = r;
+          lead++;
+          if (lead === cols) return { matrix, pivotCols };
+        }
+      }
+      const tmp = matrix[i]; matrix[i] = matrix[r]; matrix[r] = tmp;
+
+      const pivot = matrix[r][lead];
+      if (reduced) {
+        for (let c = 0; c < cols; c++) matrix[r][c] = matrix[r][c].div(pivot);
+        for (let i2 = 0; i2 < rows; i2++) {
+          if (i2 === r) continue;
+          const factor = matrix[i2][lead];
+          if (factor.isZero()) continue;
+          for (let c = 0; c < cols; c++) {
+            matrix[i2][c] = matrix[i2][c].sub(factor.mul(matrix[r][c]));
+          }
+        }
+      } else {
+        for (let i2 = r + 1; i2 < rows; i2++) {
+          const factor = matrix[i2][lead].div(pivot);
+          if (factor.isZero()) continue;
+          for (let c = 0; c < cols; c++) {
+            matrix[i2][c] = matrix[i2][c].sub(factor.mul(matrix[r][c]));
+          }
+        }
+      }
+      pivotCols.push(lead);
+      lead++;
+    }
+    return { matrix, pivotCols };
+  }
+
+  // ---------------- UI wiring ----------------
+  const rowsSelect = document.getElementById('rowsSelect');
+  const colsSelect = document.getElementById('colsSelect');
+  const createBtn = document.getElementById('createBtn');
+  const matrixPanel = document.getElementById('matrixPanel');
+  const matrixGrid = document.getElementById('matrixGrid');
+  const inputError = document.getElementById('inputError');
+  const refBtn = document.getElementById('refBtn');
+  const rrefBtn = document.getElementById('rrefBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const outputPanel = document.getElementById('outputPanel');
+  const outputTitle = document.getElementById('outputTitle');
+  const outputSubtitle = document.getElementById('outputSubtitle');
+  const outputTable = document.getElementById('outputTable');
+  const decimalPlacesLabel = document.getElementById('decimalPlacesLabel');
+  const decimalPlacesSelect = document.getElementById('decimalPlaces');
+
+  for (let i = 1; i <= 8; i++) {
+    const o1 = document.createElement('option'); o1.value = i; o1.textContent = i;
+    rowsSelect.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value = i; o2.textContent = i;
+    colsSelect.appendChild(o2);
+  }
+  rowsSelect.value = 3;
+  colsSelect.value = 4;
+
+  let curRows = 0, curCols = 0;
+
+  function buildMatrix() {
+    curRows = parseInt(rowsSelect.value, 10);
+    curCols = parseInt(colsSelect.value, 10);
+
+    matrixGrid.innerHTML = '';
+    matrixGrid.style.gridTemplateColumns = 'repeat(' + curCols + ', auto)';
+
+    for (let r = 0; r < curRows; r++) {
+      for (let c = 0; c < curCols; c++) {
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.inputMode = 'text';
+        inp.placeholder = '0';
+        inp.dataset.r = r;
+        inp.dataset.c = c;
+        inp.id = 'cell-' + r + '-' + c;
+        matrixGrid.appendChild(inp);
+      }
+    }
+    matrixPanel.classList.remove('hidden');
+    outputPanel.classList.add('hidden');
+    inputError.classList.add('hidden');
+  }
+
+  createBtn.addEventListener('click', buildMatrix);
+
+  clearBtn.addEventListener('click', () => {
+    matrixGrid.querySelectorAll('input').forEach(inp => inp.value = '');
+    inputError.classList.add('hidden');
+  });
+
+  document.querySelectorAll('input[name=displayMode]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      decimalPlacesLabel.classList.toggle('hidden', radio.value !== 'decimal' || !radio.checked);
+      if (document.querySelector('input[name=displayMode]:checked').value === 'decimal') {
+        decimalPlacesLabel.classList.remove('hidden');
+      } else {
+        decimalPlacesLabel.classList.add('hidden');
+      }
+      if (!outputPanel.classList.contains('hidden') && lastResult) {
+        renderOutput(lastResult.matrix, lastResult.pivotCols, lastResult.title);
+      }
+    });
+  });
+  decimalPlacesSelect.addEventListener('change', () => {
+    if (!outputPanel.classList.contains('hidden') && lastResult) {
+      renderOutput(lastResult.matrix, lastResult.pivotCols, lastResult.title);
+    }
+  });
+
+  function readMatrix() {
+    const m = [];
+    for (let r = 0; r < curRows; r++) {
+      const row = [];
+      for (let c = 0; c < curCols; c++) {
+        const inp = document.getElementById('cell-' + r + '-' + c);
+        row.push(Frac.fromNumberString(inp.value));
+      }
+      m.push(row);
+    }
+    return m;
+  }
+
+  let lastResult = null;
+
+  function renderOutput(matrix, pivotCols, title) {
+    lastResult = { matrix, pivotCols, title };
+    const mode = document.querySelector('input[name=displayMode]:checked').value;
+    const places = parseInt(decimalPlacesSelect.value, 10);
+    outputTitle.textContent = title;
+    outputSubtitle.textContent = title === 'REF'
+      ? 'Zeros below each leading entry; leading entries not normalized to 1.'
+      : 'Zeros above and below each leading entry; leading entries normalized to 1.';
+
+    outputTable.innerHTML = '';
+    for (let r = 0; r < matrix.length; r++) {
+      const tr = document.createElement('tr');
+      for (let c = 0; c < matrix[r].length; c++) {
+        const td = document.createElement('td');
+        const val = matrix[r][c];
+        td.textContent = mode === 'fraction' ? val.toFractionString() : val.toDecimalString(places);
+        if (pivotCols.includes(c) && !val.isZero()) {
+          td.classList.add('pivot');
+        }
+        tr.appendChild(td);
+      }
+      outputTable.appendChild(tr);
+    }
+    outputPanel.classList.remove('hidden');
+    outputPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function runReduction(reduced, title) {
+    inputError.classList.add('hidden');
+    try {
+      const m = readMatrix();
+      const { matrix, pivotCols } = eliminate(m, reduced);
+      renderOutput(matrix, pivotCols, title);
+    } catch (e) {
+      inputError.textContent = 'Error: ' + e.message;
+      inputError.classList.remove('hidden');
+      outputPanel.classList.add('hidden');
+    }
+  }
+
+  refBtn.addEventListener('click', () => runReduction(false, 'REF'));
+  rrefBtn.addEventListener('click', () => runReduction(true, 'RREF'));
+
+  // build a default 3x4 matrix on load
+  buildMatrix();
+})();
+</script>
+</body>
+</html>
